@@ -1,7 +1,15 @@
 #include "DataManager.h"
+#include <iostream>
+
+using namespace std;
 
 DataManager::DataManager(int h, int w)
 {
+    if (h != w)
+    {
+        cout << "ERROR: Not a square image!!!!" << endl;
+    }
+
 	ImageHeight = h;
 	ImageWidth = w;
 

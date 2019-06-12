@@ -1,4 +1,6 @@
 #include "FT.h"
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 using namespace std;
 
@@ -10,19 +12,6 @@ void FT::DiscreteFourierTransform(int** InputImage, int** OutputImage, double **
 {
 	int M = h;
 	int N = w;
-
-	double** pFreq = new double*[M];
-	for (int newcnt = 0; newcnt<M; newcnt++)
-	{
-		pFreq[newcnt] = new double[N]; // 傅立葉頻率陣列
-	}
-	for (int forzero_i = 0; forzero_i<M; forzero_i++)
-	{
-		for (int forzero_j = 0; forzero_j<N; forzero_j++)
-		{
-			pFreq[forzero_i][forzero_j] = 0.0f;
-		}
-	}
 	//-------------------------------------------
 	for (int i = 0; i < M; i++)
 	{
@@ -35,18 +24,10 @@ void FT::DiscreteFourierTransform(int** InputImage, int** OutputImage, double **
 	{
 		for (int j = 0; j < N; j++)
 		{
-			// 將計算好的傅立葉實數與虛數部分作結合 
-			pFreq[i][j] = sqrt(pow(FreqReal[i][j], (double) 2.0) + pow(FreqImag[i][j], (double) 2.0));
-			// 結合後之頻率域丟入影像陣列中顯示 
-			OutputImage[i][j] = pFreq[i][j];
+			OutputImage[i][j] = sqrt(pow(FreqReal[i][j], (double) 2.0) + pow(FreqImag[i][j], (double) 2.0));
 		}
 	}
 	//-------------------------------------------
-	for (int delcnt = 0; delcnt < M; delcnt++)
-	{
-		delete[] pFreq[delcnt];
-	}
-	delete[] pFreq;
 }
 
 void FT::DFT(double ** pFreqReal, double ** pFreqImag, int ** InputImage, int h, int w, int u, int v)
@@ -159,94 +140,208 @@ void FT::InverseDFT(double ** InverseReal, double ** InverseImag, double ** pFre
 	InverseImag[x][y] = InverseImag[x][y] / (float)M;
 }
 
-void FT::FastFourierTransform(int ** InputImage, int ** OutputImage, double ** FreqReal, double ** FreqImag, int h, int w)
+void FT::FastFourierTransform(int** InputImage, int ** OutputImage, double ** FreqReal, double ** FreqImag, int N)
 {
 #ifdef _DEBUG
     cout << "FastFourierTransform" << endl;
 #endif
 
-    int M = h;
-    int N = w;
-
-    double** pFreq = new double*[M];
-    for (int newcnt = 0; newcnt < M; newcnt++)
-    {
-        pFreq[newcnt] = new double[N]; // 傅立葉頻率陣列
-    }
-    for (int forzero_i = 0; forzero_i < M; forzero_i++)
-    {
-        for (int forzero_j = 0; forzero_j < N; forzero_j++)
-        {
-            pFreq[forzero_i][forzero_j] = 0.0f;
-        }
-    }
     //-------------------------------------------
-    for (int i = 0; i < M; i++)
+    // 做成 complex
+    vector<vector<complex<double>>> x(N);
+    for (int i = 0; i < N; ++i)
     {
-        for (int j = 0; j < N; j++)
+        for (int j = 0; j < N; ++j)
         {
-            FFT(FreqReal, FreqImag, InputImage, M, N, j, i);
+            complex<double> c(InputImage[i][j], 0);
+            x[i].push_back(c);
         }
     }
-    for (int i = 0; i < M; i++)
+
+    // 做 x 軸方向的 FFT
+    for (int l = 0; l < N; ++l)
+    {
+        /* bit-reversal permutation */
+        for (int i = 1, j = 0; i < N; ++i)
+        {
+            for (int k = N >> 1; !((j ^= k)&k); k >>= 1);
+            if (i > j) swap(x[l][i], x[l][j]);
+        }
+
+        /* dynamic programming */
+        for (int k = 2; k <= N; k <<= 1)
+        {
+            float t = -2.0 * M_PI / k;
+            complex<double> dw(cos(t), sin(t));
+
+            // 每k個做一次FFT
+            for (int j = 0; j < N; j += k)
+            {
+                // 前k/2個與後k/2的三角函數值恰好對稱，
+                // 因此兩兩對稱的一起做。
+                complex<double> w(1, 0);
+                for (int i = j; i < j + k / 2; i++)
+                {
+                    complex<double> a = x[l][i];
+                    complex<double> b = x[l][i + k / 2] * w;
+                    x[l][i] = a + b;
+                    x[l][i + k / 2] = a - b;
+                    w *= dw;
+                }
+            }
+        }
+    }
+
+    // 換轉另個方向時 需做
+    for (int l = 0; l < N; ++l)
+    {
+        for (int i = 0; i < N; ++i)
+            x[l][i] /= N;
+    }
+
+    // 做 y 軸方向 FFT
+    for (int l = 0; l < N; ++l)
+    {
+        /* bit-reversal permutation */
+        for (int i = 1, j = 0; i < N; ++i)
+        {
+            for (int k = N >> 1; !((j ^= k)&k); k >>= 1);
+            if (i > j) swap(x[i][l], x[j][l]);
+        }
+
+        /* dynamic programming */
+        for (int k = 2; k <= N; k <<= 1)
+        {
+            float t = -2.0 * M_PI / k;
+            complex<double> dw(cos(t), sin(t));
+
+            // 每k個做一次FFT
+            for (int j = 0; j < N; j += k)
+            {
+                // 前k/2個與後k/2的三角函數值恰好對稱，
+                // 因此兩兩對稱的一起做。
+                complex<double> w(1, 0);
+                for (int i = j; i < j + k / 2; i++)
+                {
+                    complex<double> a = x[i][l];
+                    complex<double> b = x[i + k / 2][l] * w;
+                    x[i][l] = a + b;
+                    x[i + k / 2][l] = a - b;
+                    w *= dw;
+                }
+            }
+        }
+    }
+    
+    for (int i = 0; i < N; i++)
     {
         for (int j = 0; j < N; j++)
         {
+            FreqReal[i][j] = x[i][j].real();
+            FreqImag[i][j] = x[i][j].imag();
+
             // 將計算好的傅立葉實數與虛數部分作結合 
-            pFreq[i][j] = sqrt(pow(FreqReal[i][j], (double) 2.0) + pow(FreqImag[i][j], (double) 2.0));
-            // 結合後之頻率域丟入影像陣列中顯示 
-            OutputImage[i][j] = pFreq[i][j];
+            OutputImage[i][j] = sqrt(pow(FreqReal[i][j], (double) 2.0) + pow(FreqImag[i][j], (double) 2.0));
         }
     }
     //-------------------------------------------
-    for (int delcnt = 0; delcnt < M; delcnt++)
-    {
-        delete[] pFreq[delcnt];
-    }
-    delete[] pFreq;
 }
 
-void FT::FFT(double ** pFreqReal, double ** pFreqImag, int ** InputImage, int h, int w, int u, int v)
-{
-#ifdef _DEBUG
-    cout << "FFT" << endl;
-#endif
-
-    // M = N 必須是方陣
-    int M = h;
-    int N = w;
-
-    for (int y = 0; y < M; y++)
-    {
-        for (int x = 0; x < N; x++)
-        {
-            // 可先計算Eular's equation e^{j*theta} = cos{theta}+j*sin{theta}			
-            double angleDFT = (-1.0f * 2.0f * 3.14159 * (double)(u*x + v * y) / (double)M);
-            double c = cos(angleDFT);
-            double s = sin(angleDFT);
-
-            // 利用Eular's equation計算傅立葉之實虛數部分
-            pFreqReal[u][v] += (double)InputImage[y][x] * c;
-            pFreqImag[u][v] -= (double)InputImage[y][x] * s;
-        }
-    }
-
-    pFreqReal[u][v] = pFreqReal[u][v] / (double)(M);
-    pFreqImag[u][v] = pFreqImag[u][v] / (double)(M);
-}
-
-void FT::InverseFastFourierTransform(int ** InputImage, int ** OutputImage, double ** FreqReal, double ** FreqImag, int h, int w)
+void FT::InverseFastFourierTransform(int ** InputImage, int ** OutputImage, double ** FreqReal, double ** FreqImag, int N)
 {
 #ifdef _DEBUG
     cout << "InverseFastFourierTransform" << endl;
 #endif
+    //-------------------------------------------
+    // 做成 complex
+    vector<vector<complex<double>>> x(N);
+    for (int i = 0; i < N; ++i)
+    {
+        for (int j = 0; j < N; ++j)
+        {
+            complex<double> c(FreqReal[j][i], FreqImag[j][i]);
+            x[i].push_back(c);
+        }
+    }
+
+    // 做 x 軸方向的 FFT
+    for (int l = 0; l < N; ++l)
+    {
+        /* bit-reversal permutation */
+        for (int i = 1, j = 0; i < N; ++i)
+        {
+            for (int k = N >> 1; !((j ^= k)&k); k >>= 1);
+            if (i > j) swap(x[l][i], x[l][j]);
+        }
+
+        /* dynamic programming */
+        for (int k = 2; k <= N; k <<= 1)
+        {
+            float t = -2.0 * M_PI / k;
+            complex<double> dw(cos(t), sin(t));
+
+            // 每k個做一次FFT
+            for (int j = 0; j < N; j += k)
+            {
+                // 前k/2個與後k/2的三角函數值恰好對稱，
+                // 因此兩兩對稱的一起做。
+                complex<double> w(1, 0);
+                for (int i = j; i < j + k / 2; i++)
+                {
+                    complex<double> a = x[l][i];
+                    complex<double> b = x[l][i + k / 2] * w;
+                    x[l][i] = a + b;
+                    x[l][i + k / 2] = a - b;
+                    w *= dw;
+                }
+            }
+        }
+    }
+
+    // 做 y 軸方向 FFT
+    for (int l = 0; l < N; ++l)
+    {
+        /* bit-reversal permutation */
+        for (int i = 1, j = 0; i < N; ++i)
+        {
+            for (int k = N >> 1; !((j ^= k)&k); k >>= 1);
+            if (i > j) swap(x[i][l], x[j][l]);
+        }
+
+        /* dynamic programming */
+        for (int k = 2; k <= N; k <<= 1)
+        {
+            float t = -2.0 * M_PI / k;
+            complex<double> dw(cos(t), sin(t));
+
+            // 每k個做一次FFT
+            for (int j = 0; j < N; j += k)
+            {
+                // 前k/2個與後k/2的三角函數值恰好對稱，
+                // 因此兩兩對稱的一起做。
+                complex<double> w(1, 0);
+                for (int i = j; i < j + k / 2; i++)
+                {
+                    complex<double> a = x[i][l];
+                    complex<double> b = x[i + k / 2][l] * w;
+                    x[i][l] = a + b;
+                    x[i + k / 2][l] = a - b;
+                    w *= dw;
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < N; i++)
+    {
+        for (int j = 0; j < N; j++)
+        {
+            FreqReal[i][j] = x[i][j].real();
+            FreqImag[i][j] = x[i][j].imag();
+
+            // 將計算好的傅立葉實數與虛數部分作結合 
+            OutputImage[i][j] = sqrt(pow(FreqReal[i][j], (double) 2.0) + pow(FreqImag[i][j], (double) 2.0));
+        }
+    }
+    //-------------------------------------------
 }
-
-void FT::InverseFFT(double ** InverseReal, double ** InverseImag, double ** pFreqReal, double ** pFreqImag, int h, int w, int x, int y)
-{
-#ifdef _DEBUG
-    cout << "InverseFFT" << endl;
-#endif
-}
-
-

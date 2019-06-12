@@ -36,6 +36,13 @@ System::Void MyForm::discreteFourierTransformToolStripMenuItem_Click(System::Obj
     int w = dataManager->GetImageWidth();
     int h = dataManager->GetImageHeight();
 
+    int **tempInputImage;
+
+    tempInputImage = new int*[h];
+
+    for (int i = 0; i < h; ++i)
+        tempInputImage[i] = new int[w];
+
     // 利用傅立葉之平移性，平移頻率
     for (int i = 0; i < h; i++)
     {
@@ -43,12 +50,12 @@ System::Void MyForm::discreteFourierTransformToolStripMenuItem_Click(System::Obj
         {
             int valuePixeli = dataManager->GetInputImage()[i][j];
             valuePixeli = valuePixeli * pow((float)-1, (float)(i + j));
-            dataManager->SetPixel(j, i, valuePixeli);
+            tempInputImage[i][j] = valuePixeli;
         }
     }
 
     //將算出頻率資訊傳入輸出影像
-    fourierTransformMethod->DiscreteFourierTransform(dataManager->GetInputImage(), dataManager->GetOutputImage(), dataManager->GetFreqReal(), dataManager->GetFreqImag(), h, w);
+    fourierTransformMethod->DiscreteFourierTransform(tempInputImage, dataManager->GetOutputImage(), dataManager->GetFreqReal(), dataManager->GetFreqImag(), h, w);
     Bitmap^ DFTImage = gcnew Bitmap(w, h);
     for (int i = 0; i < h; i++)
     {
@@ -142,6 +149,13 @@ System::Void MyForm::fastFourierTransformToolStripMenuItem_Click(System::Object^
     int w = dataManager->GetImageWidth();
     int h = dataManager->GetImageHeight();
 
+    int **tempInputImage;
+
+    tempInputImage = new int*[h];
+
+    for (int i = 0; i < h; ++i)
+        tempInputImage[i] = new int[w];
+
     // 利用傅立葉之平移性，平移頻率
     for (int i = 0; i < h; i++)
     {
@@ -149,12 +163,12 @@ System::Void MyForm::fastFourierTransformToolStripMenuItem_Click(System::Object^
         {
             int valuePixeli = dataManager->GetInputImage()[i][j];
             valuePixeli = valuePixeli * pow((float)-1, (float)(i + j));
-            dataManager->SetPixel(j, i, valuePixeli);
+            tempInputImage[j][i] = valuePixeli;
         }
     }
 
     //將算出頻率資訊傳入輸出影像
-    fourierTransformMethod->FastFourierTransform(dataManager->GetInputImage(), dataManager->GetOutputImage(), dataManager->GetFreqReal(), dataManager->GetFreqImag(), h, w);
+    fourierTransformMethod->FastFourierTransform(tempInputImage, dataManager->GetOutputImage(), dataManager->GetFreqReal(), dataManager->GetFreqImag(), h);
     Bitmap^ FFTImage = gcnew Bitmap(w, h);
     for (int i = 0; i < h; i++)
     {
@@ -177,6 +191,42 @@ System::Void MyForm::fastFourierTransformToolStripMenuItem_Click(System::Object^
 
 System::Void MyForm::inverseFastFourierTransformToolStripMenuItem_Click(System::Object^  sender, System::EventArgs^  e)
 {
+    int w = dataManager->GetImageWidth();
+    int h = dataManager->GetImageHeight();
+
+    // 利用傅立葉之平移性，平移頻率
+    for (int i = 0; i < h; i++)
+    {
+        for (int j = 0; j < w; j++)
+        {
+            int valuePixeli = dataManager->GetInputImage()[i][j];
+            valuePixeli = valuePixeli * pow((float)-1, (float)(i + j));
+            dataManager->SetPixel(j, i, valuePixeli);
+        }
+    }
+    fourierTransformMethod->InverseFastFourierTransform(dataManager->GetInputImage(), dataManager->GetOutputImage(), dataManager->GetFreqReal(), dataManager->GetFreqImag(), h);
+
+    //將算出頻率資訊傳入輸出影像
+    Bitmap^ IDFTImage = gcnew Bitmap(w, h);
+    for (int i = 0; i < h; i++)
+    {
+        for (int j = 0; j < w; j++)
+        {
+            int valuePixeli = dataManager->GetOutputImage()[i][j];
+
+            if (valuePixeli > 255)
+            {
+                valuePixeli = 255;
+            }
+            else if (valuePixeli < 0)
+            {
+                valuePixeli = 0;
+            }
+            IDFTImage->SetPixel(j, i, Color::FromArgb(valuePixeli, valuePixeli, valuePixeli));
+        }
+    }
+
+    pictureBox_OutputImage->Image = IDFTImage;
 }
 
 [STAThread]

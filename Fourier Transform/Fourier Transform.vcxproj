@@ -143,7 +143,9 @@
   <ItemGroup>
     <ClCompile Include="DataManager.cpp" />
     <ClCompile Include="FT.cpp" />
+    <ClCompile Include="FT2.cpp" />
     <ClCompile Include="MyForm.cpp" />
+    <ClCompile Include="MyForm2.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DataManager.h" />

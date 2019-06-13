@@ -192,13 +192,6 @@ void FT::FastFourierTransform(int** InputImage, int ** OutputImage, double ** Fr
         }
     }
 
-    // 換轉另個方向時 需做
-    for (int l = 0; l < N; ++l)
-    {
-        for (int i = 0; i < N; ++i)
-            x[l][i] /= N;
-    }
-
     // 做 y 軸方向 FFT
     for (int l = 0; l < N; ++l)
     {
@@ -237,8 +230,8 @@ void FT::FastFourierTransform(int** InputImage, int ** OutputImage, double ** Fr
     {
         for (int j = 0; j < N; j++)
         {
-            FreqReal[i][j] = x[i][j].real();
-            FreqImag[i][j] = x[i][j].imag();
+            FreqReal[i][j] = x[i][j].real() / N;
+            FreqImag[i][j] = x[i][j].imag() / N;
 
             // 將計算好的傅立葉實數與虛數部分作結合 
             OutputImage[i][j] = sqrt(pow(FreqReal[i][j], (double) 2.0) + pow(FreqImag[i][j], (double) 2.0));
@@ -277,7 +270,7 @@ void FT::InverseFastFourierTransform(int ** InputImage, int ** OutputImage, doub
         /* dynamic programming */
         for (int k = 2; k <= N; k <<= 1)
         {
-            float t = -2.0 * M_PI / k;
+            float t = 2.0 * M_PI / k;
             complex<double> dw(cos(t), sin(t));
 
             // 每k個做一次FFT
@@ -311,7 +304,7 @@ void FT::InverseFastFourierTransform(int ** InputImage, int ** OutputImage, doub
         /* dynamic programming */
         for (int k = 2; k <= N; k <<= 1)
         {
-            float t = -2.0 * M_PI / k;
+            float t = 2.0 * M_PI / k;
             complex<double> dw(cos(t), sin(t));
 
             // 每k個做一次FFT
@@ -336,8 +329,8 @@ void FT::InverseFastFourierTransform(int ** InputImage, int ** OutputImage, doub
     {
         for (int j = 0; j < N; j++)
         {
-            FreqReal[i][j] = x[i][j].real();
-            FreqImag[i][j] = x[i][j].imag();
+            FreqReal[i][j] = x[i][j].real() / N;
+            FreqImag[i][j] = x[i][j].imag() / N;
 
             // 將計算好的傅立葉實數與虛數部分作結合 
             OutputImage[i][j] = sqrt(pow(FreqReal[i][j], (double) 2.0) + pow(FreqImag[i][j], (double) 2.0));

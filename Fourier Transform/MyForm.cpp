@@ -194,6 +194,13 @@ System::Void MyForm::inverseFastFourierTransformToolStripMenuItem_Click(System::
     int w = dataManager->GetImageWidth();
     int h = dataManager->GetImageHeight();
 
+    int **tempInputImage;
+
+    tempInputImage = new int*[h];
+
+    for (int i = 0; i < h; ++i)
+        tempInputImage[i] = new int[w];
+
     // 利用傅立葉之平移性，平移頻率
     for (int i = 0; i < h; i++)
     {
@@ -201,13 +208,13 @@ System::Void MyForm::inverseFastFourierTransformToolStripMenuItem_Click(System::
         {
             int valuePixeli = dataManager->GetInputImage()[i][j];
             valuePixeli = valuePixeli * pow((float)-1, (float)(i + j));
-            dataManager->SetPixel(j, i, valuePixeli);
+            tempInputImage[j][i] = valuePixeli;
         }
     }
-    fourierTransformMethod->InverseFastFourierTransform(dataManager->GetInputImage(), dataManager->GetOutputImage(), dataManager->GetFreqReal(), dataManager->GetFreqImag(), h);
+    fourierTransformMethod->InverseFastFourierTransform(tempInputImage, dataManager->GetOutputImage(), dataManager->GetFreqReal(), dataManager->GetFreqImag(), h);
 
     //將算出頻率資訊傳入輸出影像
-    Bitmap^ IDFTImage = gcnew Bitmap(w, h);
+    Bitmap^ IFFTImage = gcnew Bitmap(w, h);
     for (int i = 0; i < h; i++)
     {
         for (int j = 0; j < w; j++)
@@ -222,11 +229,11 @@ System::Void MyForm::inverseFastFourierTransformToolStripMenuItem_Click(System::
             {
                 valuePixeli = 0;
             }
-            IDFTImage->SetPixel(j, i, Color::FromArgb(valuePixeli, valuePixeli, valuePixeli));
+            IFFTImage->SetPixel(j, i, Color::FromArgb(valuePixeli, valuePixeli, valuePixeli));
         }
     }
 
-    pictureBox_OutputImage->Image = IDFTImage;
+    pictureBox_OutputImage->Image = IFFTImage;
 }
 
 [STAThread]
